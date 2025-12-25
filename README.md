@@ -10,6 +10,8 @@ The **Just-in-Time (JIT) Knowledge System** is a powerful AI-driven application 
 - **Modern UI**: Built with React, Vite, and Framer Motion for a smooth, responsive user experience.
 - **Real-time Interaction**: Fast and accurate responses powered by the latest Gemini models.
 
+## Preview
+ <img width="1600" height="846" alt="image" src="https://github.com/user-attachments/assets/d180b6ad-0142-481b-b9c2-fb4da32fd86b" />
 ## 🛠️ Tech Stack
 
 ### Frontend
