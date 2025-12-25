@@ -45,23 +45,14 @@ export default function ChatInterface({ context, uploadedFiles }) {
         }
     };
 
-    // Custom renderer for citations
-    const renderText = (text) => {
-        if (!text) return null;
-        // Regex for [Source: ..., Page: ...]
-        // We split by the regex but capture the group so we can map over it
-        const parts = text.split(/(\[Source: .*?, Page: \d+\])/g);
-        return parts.map((part, index) => {
-            if (part.match(/^\[Source: .*?, Page: \d+\]$/)) {
-                return (
-                    <span key={index} className="citation-chip" title="Click to view source (mock)">
-                        {part}
-                    </span>
-                );
-            }
-            // Render markdown for non-citation parts
-            return <span key={index}><ReactMarkdown components={{ p: 'span' }}>{part}</ReactMarkdown></span>;
-        });
+    // Process text to highlight citations
+    const processCitations = (text) => {
+        if (!text) return text;
+        // Convert citation format to styled markdown-like format
+        return text.replace(
+            /\[Source: (.*?), Page: (\d+)\]/g,
+            '`📄 $1 | Page $2`'
+        );
     };
 
     return (
@@ -69,18 +60,46 @@ export default function ChatInterface({ context, uploadedFiles }) {
             <div className="chat-history">
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`message ${msg.role === 'user' ? 'user' : 'bot'}`}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                            {msg.role === 'model' && <Bot size={20} style={{ marginTop: '2px' }} />}
-                            <div style={{ flex: 1 }}>
-                                {renderText(msg.text)}
-                            </div>
-                            {msg.role === 'user' && <User size={20} style={{ marginTop: '2px' }} />}
+                        <div className="message-header">
+                            {msg.role === 'model' && <Bot size={18} />}
+                            <span className="message-role">{msg.role === 'model' ? 'Assistant' : 'You'}</span>
+                            {msg.role === 'user' && <User size={18} />}
+                        </div>
+                        <div className="message-content">
+                            {msg.role === 'user' ? (
+                                <p>{msg.text}</p>
+                            ) : (
+                                <ReactMarkdown
+                                    components={{
+                                        h1: ({ children }) => <h1 className="md-h1">{children}</h1>,
+                                        h2: ({ children }) => <h2 className="md-h2">{children}</h2>,
+                                        h3: ({ children }) => <h3 className="md-h3">{children}</h3>,
+                                        p: ({ children }) => <p className="md-p">{children}</p>,
+                                        ul: ({ children }) => <ul className="md-ul">{children}</ul>,
+                                        ol: ({ children }) => <ol className="md-ol">{children}</ol>,
+                                        li: ({ children }) => <li className="md-li">{children}</li>,
+                                        strong: ({ children }) => <strong className="md-strong">{children}</strong>,
+                                        em: ({ children }) => <em className="md-em">{children}</em>,
+                                        code: ({ children }) => <code className="md-code">{children}</code>,
+                                        hr: () => <hr className="md-hr" />,
+                                        blockquote: ({ children }) => <blockquote className="md-blockquote">{children}</blockquote>,
+                                    }}
+                                >
+                                    {processCitations(msg.text)}
+                                </ReactMarkdown>
+                            )}
                         </div>
                     </div>
                 ))}
                 {loading && (
                     <div className="message bot">
-                        <div className="loading-dots">Thinking</div>
+                        <div className="message-header">
+                            <Bot size={18} />
+                            <span className="message-role">Assistant</span>
+                        </div>
+                        <div className="message-content">
+                            <div className="loading-dots">Thinking</div>
+                        </div>
                     </div>
                 )}
                 <div ref={messagesEndRef} />

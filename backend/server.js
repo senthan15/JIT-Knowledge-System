@@ -18,12 +18,12 @@ app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 
 // Initialize Gemini API
-// Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_API_KEY);
 
 let model;
-const MODEL_NAMES = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-pro", "gemini-1.5-pro"];
+// Updated model list based on available models
+const MODEL_NAMES = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-flash-latest"];
 
 async function initializeModel() {
     for (const modelName of MODEL_NAMES) {
@@ -98,6 +98,41 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
     }
 });
 
+// API: Analyze Document
+app.post('/api/analyze', async (req, res) => {
+    const { fileUri, mimeType } = req.body;
+
+    if (!fileUri) {
+        return res.status(400).send('File URI required');
+    }
+
+    try {
+        if (!model) {
+            await initializeModel();
+            if (!model) throw new Error("No available Gemini model found.");
+        }
+
+        const prompt = "Please analyze this document and provide a concise summary and review of its key points. Highlight any important requirements or obligations.";
+
+        const result = await model.generateContent([
+            {
+                fileData: {
+                    mimeType: mimeType || 'application/pdf',
+                    fileUri: fileUri
+                }
+            },
+            { text: prompt }
+        ]);
+
+        const responseText = result.response.text();
+        res.json({ analysis: responseText });
+
+    } catch (error) {
+        console.error("Analysis Error:", error);
+        res.status(500).json({ error: error.message || 'Error analyzing document.' });
+    }
+});
+
 // API: Chat
 app.post('/api/chat', async (req, res) => {
     const { message, context, files, sessionId } = req.body;
@@ -114,12 +149,6 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Construct System Instruction / Context
-    // We can't easily change system instruction per turn in standard chat, 
-    // but we can prepend context to the first message or use it in the prompt.
-    // For Gemini 1.5, we can pass system instructions at model initialization, 
-    // but here we might want dynamic context.
-    // We'll prepend the context to the user message for this turn to ensure it's considered.
-
     const contextString = `
     Context:
     Claim Type: ${context?.claimType || 'N/A'}
@@ -141,7 +170,6 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Prepare the history for the chat model
-        // Gemini Chat API expects history as { role: 'user'|'model', parts: [...] }
         const history = chatSessions[sessionId];
 
         const chat = model.startChat({
@@ -150,15 +178,6 @@ app.post('/api/chat', async (req, res) => {
                 temperature: 0.2, // Low temp for factual accuracy
             },
         });
-
-        // Prepare the current message parts
-        // We include the text and any file references that haven't been added to history yet?
-        // Actually, for Gemini 1.5, we can pass fileData in the message parts.
-        // If files were just uploaded, we should include them in this turn.
-        // However, usually files are part of the "Knowledge Base". 
-        // For this demo, we'll assume files are passed with the message if they are relevant to this turn,
-        // or we can add them to the history if they are "persistent".
-        // Let's pass them in the current message parts.
 
         const parts = [{ text: contextString + "\n\nUser Query: " + message }];
 
@@ -177,12 +196,6 @@ app.post('/api/chat', async (req, res) => {
         const responseText = result.response.text();
 
         // Update local history
-        // Note: chat.sendMessage automatically updates the chat object's internal history,
-        // but we need to save it to our store to persist across requests if we were re-initializing.
-        // However, `chat` object is stateful. If we re-create `chat` every time, we need to pass `history`.
-        // The `history` we passed to startChat doesn't include the new turn.
-        // We need to append the new turn to our `chatSessions`.
-
         // User turn
         chatSessions[sessionId].push({
             role: "user",

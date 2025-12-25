@@ -4,12 +4,10 @@ require('dotenv').config();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 const modelsToTry = [
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-001",
-    "gemini-1.5-pro",
-    "gemini-1.5-pro-001",
-    "gemini-1.0-pro",
-    "gemini-pro"
+    "gemini-2.0-flash-lite-preview-02-05",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-2.0-flash",
 ];
 
 async function checkModels() {
